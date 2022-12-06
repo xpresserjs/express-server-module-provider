@@ -1,0 +1,11 @@
+node_modules
+.idea
+.vscode
+
+
+
+*.log
+
+# TS
+*.ts
+!*.d.ts

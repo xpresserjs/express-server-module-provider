@@ -1,0 +1,14 @@
+node_modules
+.idea
+.vscode
+dev
+build
+../express-server-module/test.ts
+yarn.lock
+*.log
+
+# TS
+*.js
+*.d.ts
+
+xjs
