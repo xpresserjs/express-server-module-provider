@@ -7,7 +7,8 @@ const base = __dirname(import.meta.url);
 
 // Init Xpresser
 const $ = await init({
-    env: "name",
+    env: "development",
+    name: "Xpresser Express Provider",
     debug: {
         bootCycle: {
             started: true,

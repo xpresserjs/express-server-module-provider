@@ -1,20 +1,52 @@
 import type {Express} from "express";
-import {XpresserHttpServerProvider, HttpServerProvider} from "@xpresser/server-module/provider.js";
+import {type HttpServerProviderStructure, HttpServerProvider} from "@xpresser/server-module/provider.js";
 import type {Xpresser} from "@xpresser/framework/xpresser.js";
 import File from "@xpresser/framework/classes/File.js";
 import {importDefault} from "@xpresser/framework/functions/module.js";
+import type {Server} from "http";
+import type {Server as HttpServer} from "https";
+import moment from "moment";
+import {resolve} from "path";
 
+// import {createServer as createHttpsServer} from "https";
 
-class ExpressProvider extends HttpServerProvider implements XpresserHttpServerProvider {
+/**
+ * Add BootCycle types
+ */
+
+declare module "@xpresser/framework/engines/BootCycleEngine.js" {
+    module BootCycle {
+        enum Cycles {
+            expressInit = "serverInit",
+            http = "http",
+            https = "https",
+        }
+    }
+}
+
+class ExpressProvider extends HttpServerProvider implements HttpServerProviderStructure {
     app!: Express;
+    http: Server | undefined;
+    https: HttpServer | undefined;
 
+    private isProduction: boolean = false;
+
+
+    customBootCycles(): string[] {
+        return [
+            // list of boot cycles available on this module
+            "expressInit",
+            "http",
+            "https",
+        ];
+    }
 
     async init($: Xpresser) {
 
         // import express
         const {default: express} = await import('express');
 
-        const isProduction = $.config.data.env === 'production';
+        this.isProduction = $.config.data.env === 'production';
         const paths = $.config.data.paths;
         const isUnderMaintenance = File.exists($.path.base('.maintenance'))
 
@@ -127,7 +159,7 @@ class ExpressProvider extends HttpServerProvider implements XpresserHttpServerPr
          * Set Express View Engine from config
          */
         const template = $.config.get('template');
-        if(template) {
+        if (template) {
             if (typeof template.engine === "function") {
 
                 this.app.engine(template.extension, template.engine);
@@ -169,6 +201,136 @@ class ExpressProvider extends HttpServerProvider implements XpresserHttpServerPr
             });
         }
 
+
+        // Run expressInit event
+        await $.runBootCycle('expressInit');
+    }
+
+    async boot($: Xpresser) {
+        // import createServer as createHttpServer
+        const {createServer: createHttpServer} = await import('http');
+
+
+        // Create http server
+        this.http = createHttpServer(this.app);
+
+        // Run http event
+        await $.runBootCycle('http');
+
+        // get server port
+        const port = $.config.data.server?.port || 80;
+
+        const {default: ServerEngine} = await import("@xpresser/server-module/engines/ServerEngine.js");
+
+        // Start Server
+        await new Promise((resolve, reject) => {
+
+            this.http!.on("error", (err: any) => {
+                if (err["errno"] === "EADDRINUSE") {
+                    return $.console.logErrorAndExit(`Port ${err["port"]} is already in use.`);
+                }
+
+                return reject(err);
+            });
+
+            this.http!.listen(port, async () => {
+                const serverDomainAndPort = $.config.get("log.serverDomainAndPort");
+                const domain = $.config.get('server.domain');
+                const serverEngine = $.engine(ServerEngine)
+                const baseUrl = serverEngine.url().trim();
+                const lanIp = $.engineData.get("lanIp");
+                const ServerStarted = new Date();
+
+                const getServerUptime = () => moment(ServerStarted).fromNow();
+
+                if (serverDomainAndPort || (baseUrl === '' || baseUrl === '/')) {
+                    $.console.log(`Domain: ${domain} | Port: ${port} | BaseUrl: ${baseUrl}`);
+                } else {
+                    $.console.log(`Url: ${baseUrl}`);
+                }
+
+
+                /**
+                 * Show Lan Ip in development mood
+                 */
+                if (!this.isProduction && lanIp)
+                    $.console.log(`Network: http://${lanIp}:${port}/`);
+
+                /**
+                 * Show Server Started Time only on production
+                 */
+                if (this.isProduction)
+                    $.console.log(`Server started - ${ServerStarted.toString()}`);
+
+                // Save values to engineData
+                $.engineData.set({
+                    ServerStarted,
+                    getServerUptime,
+                    lanIp
+                })
+
+                const hasSslEnabled = $.config.get("server.ssl.enabled", false);
+                if (hasSslEnabled) await this.startHttpsServer($);
+
+                resolve(true);
+            });
+        });
+    }
+
+
+    async startHttpsServer($: Xpresser) {
+        // import createServer as createHttpServer
+        const {createServer: createHttpsServer} = await import('https');
+
+
+        if (!$.config.has("server.ssl.files")) {
+            $.console.logErrorAndExit("Ssl enabled but has no {server.ssl.files} config found.");
+        }
+
+        const files = $.config.get<{
+            key: string,
+            cert: string
+        }>("server.ssl.files");
+
+        // noinspection SuspiciousTypeOfGuard
+        if (typeof files.key !== "string" || typeof files.cert !== "string") {
+            $.console.logErrorAndExit("Config {server.ssl.files} not configured properly!");
+        }
+
+        if (!files.key.length || !files.cert.length) {
+            $.console.logErrorAndExit("Config {server.ssl.files} not configured properly!");
+        }
+
+        files.key = resolve(files.key);
+        files.cert = resolve(files.cert);
+
+        if (!File.exists(files.key)) {
+            $.console.logErrorAndExit("Key file {" + files.key + "} not found!");
+        }
+
+        if (!File.exists(files.cert)) {
+            $.console.logErrorAndExit("Cert file {" + files.key + "} not found!");
+        }
+
+        files.key = File.read(files.key).toString();
+        files.cert = File.read(files.cert).toString();
+
+        this.https = createHttpsServer(files, this.app);
+
+        // Run https event
+        await $.runBootCycle('https');
+
+        const httpsPort = $.config.get("server.ssl.port", 443);
+
+        // Start Server
+        await new Promise((resolve) => {
+            this.https!.on("error", $.console.logError);
+
+            this.https!.listen(httpsPort, () => {
+                $.console.logSuccess("Ssl Enabled.");
+                resolve(true);
+            });
+        });
     }
 }
 
