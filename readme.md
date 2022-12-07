@@ -17,10 +17,18 @@ const $ = await init({
 });
 
 //  Initialize Express Server Module Provider
-const express = new ExpressProvider();
+const expressProvider = new ExpressProvider();
 
 // Register Server Module with Express Provider
-await RegisterServerModule($, express);
+await RegisterServerModule($, expressProvider);
+
+
+// log on started
+$.on.expressInit((next) => {
+    expressProvider.app // express app
+    expressProvider.http // http server
+    expressProvider.https // http server (if ssl is enabled) socket.io server
+})
 
 // Start Xpresser
 $.start().catch($.console.logErrorAndExit);
