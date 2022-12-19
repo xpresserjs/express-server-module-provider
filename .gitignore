@@ -3,7 +3,6 @@ node_modules
 .vscode
 dev
 build
-../express-server-module/test.ts
 yarn.lock
 *.log
 

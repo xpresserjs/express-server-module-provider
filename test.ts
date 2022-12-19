@@ -20,11 +20,15 @@ const $ = await init({
     },
 });
 
+
 //  Initialize Express Server Module Provider
 const express = new ExpressProvider();
 
 // Register Server Module with Express Provider
 await RegisterServerModule($, express);
+
+$.modules.setDefault("server")
+
 
 $.start().catch((e:any) => $.console.logErrorAndExit(e));
 
