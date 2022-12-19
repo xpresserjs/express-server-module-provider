@@ -1,6 +1,5 @@
-import {init, __dirname} from "@xpresser/framework";
-import {RegisterServerModule} from "@xpresser/server-module";
-import ExpressProvider from "./index.js";
+import { init, __dirname } from "@xpresser/framework";
+import { RegisterExpressServerModule } from "./index.js";
 
 // Get Base Folder Path
 const base = __dirname(import.meta.url);
@@ -11,24 +10,18 @@ const $ = await init({
     name: "Express Provider",
     debug: {
         bootCycle: {
-            // started: true,
-            // completed: true,
+            started: true,
+            completed: true
         }
     },
-    paths: {
-        base,
-    },
+    paths: { base }
 });
 
-
-//  Initialize Express Server Module Provider
-const express = new ExpressProvider();
-
 // Register Server Module with Express Provider
-await RegisterServerModule($, express);
+await RegisterExpressServerModule($);
 
-$.modules.setDefault("server")
+// set as default module
+$.modules.setDefault("server");
 
-
-$.start().catch((e:any) => $.console.logErrorAndExit(e));
-
+// Start Xpresser
+$.start().catch($.console.logError);
