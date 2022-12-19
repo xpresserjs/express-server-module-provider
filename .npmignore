@@ -9,4 +9,4 @@ node_modules
 !*.d.ts
 
 # JS
-test.js
+tests

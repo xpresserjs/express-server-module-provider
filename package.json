@@ -9,7 +9,7 @@
   "private": false,
   "scripts": {
     "watch": "npx tsc -w",
-    "dev": "nodemon --exec npx ts-node-esm test.ts server"
+    "dev": "nodemon --exec npx ts-node-esm ./tests/test.ts server"
   },
   "dependencies": {
     "@xpresser/server-module": "^0.0.5",

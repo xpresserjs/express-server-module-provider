@@ -1,5 +1,5 @@
-import { init, __dirname } from "@xpresser/framework";
-import { RegisterExpressServerModule } from "./index.js";
+import { init, __dirname } from "@xpresser/framework/index.js";
+import { RegisterExpressServerModule } from "../index.js";
 
 // Get Base Folder Path
 const base = __dirname(import.meta.url);
