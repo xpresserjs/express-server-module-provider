@@ -26,6 +26,17 @@ declare module "@xpresser/framework/engines/BootCycleEngine.js" {
     }
 }
 
+declare module "@xpresser/server-module/types/index.ts" {
+    module ServerConfig {
+        interface Configs {
+            bodyParser: {
+                json: any;
+                urlencoded: any;
+            };
+        }
+    }
+}
+
 export class ExpressProvider extends HttpServerProvider implements HttpServerProviderStructure {
     app!: Express;
     http: Server | undefined;
@@ -57,7 +68,8 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          * HttpToHttps Enforcer.
          * This has to be the first middleware because we need the redirect to run before every other request does.
          */
-        const forceHttpToHttps = $.config.get("server.ssl.forceHttpToHttps", false);
+
+        const forceHttpToHttps = $.config.data.server.forceHttpToHttps === true;
         if (forceHttpToHttps) {
             this.app.use((req, res, next) => {
                 const isSecure = req.headers["x-forwarded-proto"] === "https" || req.secure;
@@ -77,14 +89,15 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          * Else
          * Disable poweredBy header.
          */
-        let poweredBy = $.config.get("server.poweredBy");
-        if (poweredBy) {
-            poweredBy = typeof poweredBy === "string" ? poweredBy : "Xpresser";
-            const overrideServerName = $.config.get("response.overrideServerName");
+        const poweredBy = $.config.data.server.poweredBy;
+        const overrideServerName = $.config.data.server.name;
+
+        if (!!poweredBy || !!overrideServerName) {
+            const poweredByString: string = typeof poweredBy === "string" ? poweredBy : "Xpresser";
 
             this.app.use((_req, res, next) => {
-                res.set("X-Powered-By", poweredBy);
-                if (overrideServerName) res.set("Server", poweredBy);
+                res.set("X-Powered-By", poweredByString);
+                if (overrideServerName) res.set("Server", poweredByString);
                 next();
             });
         } else {
@@ -94,12 +107,13 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         /**
          * Serve Public folder as static
          */
-        const servePublicFolder = $.config.get("server.servePublicFolder", false);
+        const servePublicFolder = $.config.data.server.servePublicFolder;
         if (!isUnderMaintenance && servePublicFolder && paths.public) {
             const servePublicFolderOption = $.config.get(
                 "server.servePublicFolderOption",
                 undefined
             );
+
             this.app.use(express.static(paths.public, servePublicFolderOption));
         }
 
@@ -113,11 +127,10 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          * By default, Cors is disabled,
          * if you don't define a config @ {server.use.cors}
          */
-        const useCors = $.config.get("server.use.cors", false);
+        const useCors = $.config.data.server.use!.cors;
         if (useCors) {
             const { default: cors } = await import("cors");
-            const corsConfig = $.config.get("packages.cors.config", undefined);
-            this.app.use(cors(corsConfig));
+            this.app.use(cors($.config.data.server.configs!.cors));
         }
 
         /**
@@ -129,13 +142,14 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          *
          * BodyParser is enabled by default
          */
-        const useBodyParser = $.config.data.server?.use?.bodyParser;
+        const useBodyParser = $.config.data.server.use!.bodyParser;
         if (useBodyParser) {
             const { default: bodyParser } = await import("body-parser");
-            const bodyParserJsonConfig = $.config.get("packages.body-parser.json");
-            const bodyParserUrlEncodedConfig = $.config.get("packages.body-parser.urlencoded", {
+            const bodyParserJsonConfig = $.config.data.server.configs!.bodyParser?.json;
+            const bodyParserUrlEncodedConfig = $.config.data.server.configs!.bodyParser
+                ?.urlencoded || {
                 extended: true
-            });
+            };
 
             this.app.use(bodyParser.json(bodyParserJsonConfig));
             this.app.use(bodyParser.urlencoded(bodyParserUrlEncodedConfig));
