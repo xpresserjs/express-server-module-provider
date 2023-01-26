@@ -11,6 +11,7 @@ import File from "@xpresser/framework/classes/File.js";
 import { importDefault } from "@xpresser/framework/functions/module.js";
 import { RegisterServerModule } from "@xpresser/server-module/index.js";
 import type { Xpresser } from "@xpresser/framework/xpresser.js";
+import type { ApplicationRequestHandler } from "express-serve-static-core";
 
 /**
  * Add BootCycle types
@@ -26,13 +27,24 @@ declare module "@xpresser/framework/engines/BootCycleEngine.js" {
     }
 }
 
+type ExpressTemplateEngine = (
+    path: string,
+    options: object,
+    callback: (e: any, rendered?: string) => void
+) => void;
+
 declare module "@xpresser/server-module/types/index.ts" {
     module ServerConfig {
-        interface Configs {
-            bodyParser: {
-                json: any;
-                urlencoded: any;
+        interface Main {
+            template?: {
+                engine: string | ExpressTemplateEngine;
+                use: string | ApplicationRequestHandler<any>;
+                extension: string;
             };
+        }
+
+        interface Configs {
+            bodyParser?: { json: any; urlencoded: any };
         }
     }
 }
@@ -61,6 +73,9 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         const paths = $.config.data.paths;
         const isUnderMaintenance = File.exists($.path.base(".maintenance"));
 
+        // get server configs
+        const serverConfig = $.config.data.server;
+
         // initialize express
         this.app = express();
 
@@ -69,7 +84,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          * This has to be the first middleware because we need the redirect to run before every other request does.
          */
 
-        const forceHttpToHttps = $.config.data.server.forceHttpToHttps === true;
+        const forceHttpToHttps = serverConfig.forceHttpToHttps === true;
         if (forceHttpToHttps) {
             this.app.use((req, res, next) => {
                 const isSecure = req.headers["x-forwarded-proto"] === "https" || req.secure;
@@ -89,8 +104,8 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          * Else
          * Disable poweredBy header.
          */
-        const poweredBy = $.config.data.server.poweredBy;
-        const overrideServerName = $.config.data.server.name;
+        const poweredBy = serverConfig.poweredBy;
+        const overrideServerName = serverConfig.name;
 
         if (!!poweredBy || !!overrideServerName) {
             const poweredByString: string = typeof poweredBy === "string" ? poweredBy : "Xpresser";
@@ -107,7 +122,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         /**
          * Serve Public folder as static
          */
-        const servePublicFolder = $.config.data.server.servePublicFolder;
+        const servePublicFolder = serverConfig.servePublicFolder;
         if (!isUnderMaintenance && servePublicFolder && paths.public) {
             const servePublicFolderOption = $.config.get(
                 "server.servePublicFolderOption",
@@ -127,7 +142,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          * By default, Cors is disabled,
          * if you don't define a config @ {server.use.cors}
          */
-        const useCors = $.config.data.server.use!.cors;
+        const useCors = serverConfig.use!.cors;
         if (useCors) {
             const { default: cors } = await import("cors");
             this.app.use(cors($.config.data.server.configs!.cors));
@@ -142,7 +157,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          *
          * BodyParser is enabled by default
          */
-        const useBodyParser = $.config.data.server.use!.bodyParser;
+        const useBodyParser = serverConfig.use!.bodyParser;
         if (useBodyParser) {
             const { default: bodyParser } = await import("body-parser");
             const bodyParserJsonConfig = $.config.data.server.configs!.bodyParser?.json;
@@ -170,17 +185,20 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         /**
          * Set Express View Engine from config
          */
-        const template = $.config.get("template");
+        const template = serverConfig.template;
         if (template) {
             if (typeof template.engine === "function") {
                 this.app.engine(template.extension, template.engine);
                 this.app.set("view engine", template.extension);
             } else {
                 if (typeof template.use === "string") {
-                    const module = await importDefault<any>(() => import(template.use));
+                    const module = await importDefault<any>(() => import(template.use as string));
                     this.app.use(module);
                 } else if (typeof template.use === "function") {
-                    this.app.use(template.use);
+                    /**
+                     * Todo: Fix this any
+                     */
+                    this.app.use(template.use as any);
                 } else {
                     this.app.set("view engine", template.engine);
                 }
@@ -196,6 +214,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
             "server.convertBodyEmptyStringToNull",
             true
         );
+
         if (convertBodyEmptyStringToNull) {
             this.app.use((req, _res, next) => {
                 if (req.body && Object.keys(req.body).length) {
