@@ -83,9 +83,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          * HttpToHttps Enforcer.
          * This has to be the first middleware because we need the redirect to run before every other request does.
          */
-
-        const forceHttpToHttps = serverConfig.forceHttpToHttps === true;
-        if (forceHttpToHttps) {
+        if (serverConfig.forceHttpToHttps) {
             this.app.use((req, res, next) => {
                 const isSecure = req.headers["x-forwarded-proto"] === "https" || req.secure;
 
@@ -363,8 +361,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
  * @param $
  * @constructor
  */
-export async function RegisterExpressServerModule($: Xpresser) {
-    // init provider
+export async function InitializeExpress($: Xpresser) {
     const expressApp = new ExpressProvider();
     await RegisterServerModule($, expressApp);
     return expressApp;
