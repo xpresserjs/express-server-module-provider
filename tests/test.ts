@@ -1,4 +1,5 @@
-import { init, __dirname } from "@xpresser/framework/index.js";
+import { init, __dirname } from "@xpresser/framework";
+import { BootCycleFunction } from "@xpresser/framework/engines/BootCycleEngine.js";
 import { InitializeExpress } from "../index.js";
 
 // Get Base Folder Path
@@ -25,4 +26,4 @@ const $ = await init({
 await InitializeExpress($);
 
 // Start Xpresser
-$.start().catch($.console.logError);
+$.start().catch($.console.logErrorAndExit);

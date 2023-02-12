@@ -3,9 +3,8 @@
 This module provides an express server for XpresserJs.
 
 ```typescript
-import {init, __dirname} from "@xpresser/framework/index.js";
-import {RegisterServerModule} from "@xpresser/server-module";
-import ExpressProvider from "@xpresser/express-server-module-provider";
+import {init, __dirname} from "@xpresser/framework";
+import { InitializeExpress } from "@xpresser/express-module";
 
 // Get Base Folder Path
 const base = __dirname(import.meta.url);
@@ -16,12 +15,8 @@ const $ = await init({
     paths: {base},
 });
 
-//  Initialize Express Server Module Provider
-const expressProvider = new ExpressProvider();
-
 // Register Server Module with Express Provider
-await RegisterServerModule($, expressProvider);
-
+const expressProvider = await InitializeExpress($);
 
 // log on started
 $.on.expressInit((next) => {
@@ -32,6 +27,4 @@ $.on.expressInit((next) => {
 
 // Start Xpresser
 $.start().catch($.console.logErrorAndExit);
-
-
 ```
