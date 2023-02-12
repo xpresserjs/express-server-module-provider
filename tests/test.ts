@@ -1,5 +1,4 @@
 import { init, __dirname } from "@xpresser/framework";
-import { BootCycleFunction } from "@xpresser/framework/engines/BootCycleEngine.js";
 import { InitializeExpress } from "../index.js";
 
 // Get Base Folder Path
@@ -23,7 +22,19 @@ const $ = await init({
 });
 
 // Register Server Module with Express Provider
-await InitializeExpress($);
+const expressProvider = await InitializeExpress($);
+
+// Add Routes Function
+function AddRoutes() {
+    const { app } = expressProvider;
+
+    app.get("/", (req, res) => {
+        return res.send("Hello World!");
+    });
+}
+
+// Add routes to express on expressInit
+$.on.expressInit$(AddRoutes);
 
 // Start Xpresser
 $.start().catch($.console.logErrorAndExit);
