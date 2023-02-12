@@ -2,7 +2,11 @@
   "extends": "@xpresser/framework/tsconfig.json",
   "compilerOptions": {
     "outDir": "./",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": [
+      "@types/node",
+      "@types/express",
+    ]
   },
   "exclude": [
     "node_modules",
