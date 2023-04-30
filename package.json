@@ -12,22 +12,20 @@
     "dev": "nodemon --exec npx ts-node-esm ./tests/test.ts server"
   },
   "dependencies": {
-    "@xpresser/server-module": "^0.0.7",
-    "body-parser": "^1.20.1",
+    "@xpresser/server-module": "^0.0.8",
+    "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "lodash": "^4.17.21",
     "moment": "^2.29.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
-    "@types/lodash": "^4.14.191",
     "@types/node": "^18.13.0",
-    "@xpresser/framework": "^0.0.26",
-    "nodemon": "^2.0.20",
-    "prettier": "^2.8.4",
+    "@xpresser/framework": "0.0.27",
+    "nodemon": "^2.0.22",
+    "prettier": "^2.8.8",
     "ts-node": "^10.9.1",
-    "typescript": "^4.9.5"
+    "typescript": "^5.0.4"
   }
 }

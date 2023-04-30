@@ -1,8 +1,8 @@
 import moment from "moment";
-import { resolve } from "path";
+import { resolve } from "node:path";
+import type { Server } from "node:http";
+import type { Server as HttpServer } from "node:https";
 import type { Express } from "express";
-import type { Server } from "http";
-import type { Server as HttpServer } from "https";
 import {
     HttpServerProvider,
     type HttpServerProviderStructure
@@ -11,52 +11,40 @@ import File from "@xpresser/framework/classes/File.js";
 import { importDefault } from "@xpresser/framework/functions/module.js";
 import { RegisterServerModule } from "@xpresser/server-module/index.js";
 import type { Xpresser } from "@xpresser/framework/xpresser.js";
-import type { ApplicationRequestHandler } from "express-serve-static-core";
 
 /**
- * Add BootCycle types
+ * Express Provider
+ * This provider is used to create an express server.
  */
-
-declare module "@xpresser/framework/engines/BootCycleEngine.js" {
-    module BootCycle {
-        enum Cycles {
-            expressInit = "serverInit",
-            http = "http",
-            https = "https"
-        }
-    }
-}
-
-type ExpressTemplateEngine = (
-    path: string,
-    options: object,
-    callback: (e: any, rendered?: string) => void
-) => void;
-
-declare module "@xpresser/server-module/types/index.ts" {
-    module ServerConfig {
-        interface Main {
-            template?: {
-                engine: string | ExpressTemplateEngine;
-                use: string | ApplicationRequestHandler<any>;
-                extension: string;
-            };
-        }
-
-        interface Configs {
-            bodyParser?: { json: any; urlencoded: any };
-        }
-    }
-}
-
 export class ExpressProvider extends HttpServerProvider implements HttpServerProviderStructure {
+    /**
+     * Express App - undefined until `expressInit` boot cycle.
+     */
     app!: Express;
+
+    /**
+     * Node Http Server - undefined until `http` boot cycle.
+     * This is the server used by express.
+     */
     http: Server | undefined;
+
+    /**
+     * Node Https Server - undefined until `https` boot cycle.
+     * This is the server used by express.
+     */
     https: HttpServer | undefined;
 
+    /**
+     * Is Production - true if env is production.
+     * This is used to deploy express in production mode.
+     * @private
+     */
     private isProduction: boolean = false;
 
-    customBootCycles(): string[] {
+    /**
+     * Provide Custom Boot Cycles used by this provider.
+     */
+    customBootCycles() {
         return [
             // list of boot cycles available on this module
             "expressInit",
@@ -65,11 +53,18 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         ];
     }
 
+    /**
+     * Initialize Express Provider
+     * @param $
+     */
     async init($: Xpresser) {
         // import express
         const { default: express } = await import("express");
 
+        // set isProduction
         this.isProduction = $.config.data.env === "production";
+
+        // get paths
         const paths = $.config.data.paths;
         const isUnderMaintenance = File.exists($.path.base(".maintenance"));
 
