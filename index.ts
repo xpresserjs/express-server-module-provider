@@ -132,7 +132,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
          *
          * Read more https://expressjs.com/en/resources/middleware/cors.html
          *
-         * By default, Cors is disabled,
+         * By default, Cors is disabled.
          * if you don't define a config @ {server.use.cors}
          */
         const useCors = serverConfig.use!.cors;
