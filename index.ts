@@ -227,6 +227,10 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         await $.runBootCycle("expressInit");
     }
 
+    /**
+     * Boot Method
+     * @param $
+     */
     async boot($: Xpresser) {
         // import createServer as createHttpServer
         const { createServer: createHttpServer } = await import("http");
