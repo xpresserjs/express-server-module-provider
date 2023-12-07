@@ -9,14 +9,9 @@ const $ = await init({
     env: "development",
     name: "Express Provider",
     debug: {
-        bootCycle: {
-            started: true,
-            completed: true
-        },
-        bootCycleFunction: {
-            started: true,
-            completed: true
-        }
+        enabled: false,
+        bootCycle: { started: true, completed: true },
+        bootCycleFunction: { started: true, completed: true }
     },
     paths: { base }
 });
@@ -28,7 +23,7 @@ const expressProvider = await InitializeExpress($);
 function AddRoutes() {
     const { app } = expressProvider;
 
-    app.get("/", (req, res) => {
+    app.get("/", (_, res) => {
         return res.send("Hello World!");
     });
 }
