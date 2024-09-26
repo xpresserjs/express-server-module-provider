@@ -10,3 +10,4 @@ node_modules
 
 # JS
 tests
+*.sh

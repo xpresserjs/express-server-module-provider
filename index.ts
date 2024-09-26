@@ -1,22 +1,41 @@
-import moment from "moment";
 import { resolve } from "node:path";
 import type { Server } from "node:http";
 import type { Server as HttpServer } from "node:https";
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import {
     HttpServerProvider,
-    type HttpServerProviderStructure
+    type HttpServerProviderStructure,
+    OnHttpListen
 } from "@xpresser/server-module/provider.js";
 import File from "@xpresser/framework/classes/File.js";
 import { importDefault } from "@xpresser/framework/functions/module.js";
 import { RegisterServerModule } from "@xpresser/server-module/index.js";
-import type { Xpresser } from "@xpresser/framework/xpresser.js";
+import { type Xpresser, BootCycleFunction } from "@xpresser/framework";
+import XpresserRouter from "@xpresser/server-module/router/index.js";
+import ExpressRequestEngine from "./src/ExpressRequestEngine.js";
+import { RouteData } from "@xpresser/server-module/router/RouterRoute.js";
+import RouterService from "@xpresser/server-module/router/RouterService.js";
+import { RouterReqHandlerFunction } from "./src/ExpressRequestEngine.js";
+import { RequestEngine } from "@xpresser/server-module/engines/RequestEngine.js";
+
+/**
+ *  ReqHandlerFunction - Request Handler Function
+ *  This is the type of function used in routes
+ */
+export type ReqHandlerFunction = (req: Request, res: Response) => void;
 
 /**
  * Express Provider
  * This provider is used to create an express server.
  */
-export class ExpressProvider extends HttpServerProvider implements HttpServerProviderStructure {
+export default class ExpressProvider
+    extends HttpServerProvider
+    implements HttpServerProviderStructure
+{
+    static config = {
+        name: "Xpresser/ExpressProvider"
+    };
+
     /**
      * Express App - undefined until `expressInit` boot cycle.
      */
@@ -34,12 +53,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
      */
     https: HttpServer | undefined;
 
-    /**
-     * Is Production - true if env is production.
-     * This is used to deploy express in production mode.
-     * @private
-     */
-    private isProduction: boolean = false;
+    private readonly useExpressRequestHandler: boolean;
 
     /**
      * Provide Custom Boot Cycles used by this provider.
@@ -53,11 +67,17 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         ];
     }
 
+    constructor($: Xpresser, config: Partial<ExpressProviderConfig> = {}) {
+        super($);
+        this.useExpressRequestHandler = config.requestHandler === "express";
+    }
+
     /**
      * Initialize Express Provider
      * @param $
      */
-    async init($: Xpresser) {
+    async init() {
+        const $ = this.$;
         // import express
         const { default: express } = await import("express");
 
@@ -165,7 +185,7 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
             /**
              * Skip Bad Json Error
              */
-            this.app.use((err: any, req: any, res: any, next: any) => {
+            this.app.use((err: any, _req: any, _res: any, next: any) => {
                 if (err && err["type"] && err["type"] === "entity.parse.failed") {
                     // Skip Entity Errors
                     return next();
@@ -225,13 +245,21 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
 
         // Run expressInit event
         await $.runBootCycle("expressInit");
+
+        // process routes
+        $.on.bootServer(
+            BootCycleFunction("ProcessRoutes", async (next) => {
+                this.processRoutes();
+                next();
+            })
+        );
     }
 
     /**
      * Boot Method
-     * @param $
      */
-    async boot($: Xpresser) {
+    async boot() {
+        const $ = this.$;
         // import createServer as createHttpServer
         const { createServer: createHttpServer } = await import("http");
 
@@ -244,10 +272,6 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
         // get server port
         const port = $.config.data.server?.port || 80;
 
-        const { default: ServerEngine } = await import(
-            "@xpresser/server-module/engines/ServerEngine.js"
-        );
-
         // Start Server
         await new Promise((resolve, reject) => {
             this.http!.on("error", (err: any) => {
@@ -259,42 +283,24 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
             });
 
             this.http!.listen(port, async () => {
-                const serverDomainAndPort = $.config.get("log.serverDomainAndPort");
-                const domain = $.config.getTyped("server.domain");
-                const serverEngine = $.engine(ServerEngine);
-                const baseUrl = serverEngine.url().trim();
-                const lanIp = $.engineData.get("lanIp");
-                const ServerStarted = new Date();
-
-                const getServerUptime = () => moment(ServerStarted).fromNow();
-
-                if (serverDomainAndPort || baseUrl === "" || baseUrl === "/") {
-                    $.console.log(`Domain: ${domain} | Port: ${port} | BaseUrl: ${baseUrl}`);
-                } else {
-                    $.console.log(`Url: ${baseUrl}`);
-                }
-
-                /**
-                 * Show Lan Ip in development mood
-                 */
-                if (!this.isProduction && lanIp) $.console.log(`Network: http://${lanIp}:${port}/`);
-
-                /**
-                 * Show Server Started Time only on production
-                 */
-                if (this.isProduction)
-                    $.console.log(`Server started - ${ServerStarted.toString()}`);
-
-                // Save values to engineData
-                $.engineData.set({
-                    ServerStarted,
-                    getServerUptime
-                });
+                OnHttpListen($, port);
 
                 const hasSslEnabled = $.config.get("server.ssl.enabled", false);
                 if (hasSslEnabled) await this.startHttpsServer($);
 
                 resolve(true);
+            });
+        });
+
+        $.on.stopServer((next) => {
+            this.http!.close((err) => {
+                if (err) {
+                    $.console.logError("Error closing server");
+                    $.console.logError(err);
+                } else {
+                    $.console.logSuccess("Server closed successfully");
+                }
+                next();
             });
         });
     }
@@ -352,16 +358,132 @@ export class ExpressProvider extends HttpServerProvider implements HttpServerPro
             });
         });
     }
+
+    /**
+     * Process Routes
+     * @private
+     */
+    private processRoutes() {
+        const router = this.getRouter();
+        const routerService = RouterService.use(router);
+        const routes = routerService.toArray();
+
+        for (const route of routes) {
+            const method = route.method.toLowerCase() as keyof typeof this.app;
+
+            if (!this.app[method]) {
+                this.$.console.logError(`Method ${String(method)} is not supported by express`);
+                continue;
+            }
+
+            this.handleRoute(route);
+        }
+    }
+
+    /**
+     * handleRoute - Handle Route
+     * If `useNativeRequestHandler` is true, it calls the controller with `req` and `res`
+     * else it calls the controller with an instance of `NodeHttpServerRequestEngine`
+     * @param route
+     * @private
+     */
+    private handleRoute(route: RouteData): void {
+        if (this.useExpressRequestHandler) {
+            this.handleNativeRoute(route);
+        } else {
+            this.handleXpresserRoute(route);
+        }
+    }
+
+    /**
+     * Calls the controller with `req` and `res`
+     * @param route
+     * @param req
+     * @param res
+     * @private
+     */
+    private handleNativeRoute(route: RouteData): void {
+        const method = route.method.toLowerCase() as keyof typeof this.app;
+        this.app[method](route.path, route.controller);
+    }
+
+    private handleXpresserRoute(route: RouteData): void {
+        const method = route.method.toLowerCase() as keyof typeof this.app;
+        this.app[method](route.path, (req: Request, res: Response) => {
+            this.handleXpresserRequest(route, req, res);
+        });
+    }
+
+    /**
+     * Calls the controller with an instance of `NodeHttpServerRequestEngine`
+     * @param route
+     * @param req
+     * @param res
+     * @private
+     */
+    private handleXpresserRequest(route: RouteData, req: Request, res: Response): void {
+        const http = ExpressRequestEngine.use(this.$, route, req, res);
+        this.handleRequest(route, http as unknown as RequestEngine);
+    }
+
+    getNativeRouter<Router = XpresserRouter<ReqHandlerFunction>>(): Router {
+        return super.getRouter() as Router;
+    }
+
+    /**
+     * Use Express Provider
+     * @param $
+     * @param config
+     * @example
+     * const { router } = await Provider.use($);
+     *
+     * router.get("/", (http) => {
+     *     http.json({ message: "Hello World!!" });
+     * });
+     */
+
+    static async use(
+        $: Xpresser,
+        config: Partial<ExpressProviderConfig & { defaultModule: boolean }> = {}
+    ) {
+        const { defaultModule, ...others } = config;
+
+        // Initialize Server
+        const server = new this($, others);
+
+        // Register Server Module
+        await RegisterServerModule($, server, defaultModule === true);
+
+        // Return raw router that makes use express request handler
+        const nativeRouter = server.getNativeRouter();
+
+        // Return router type that makes use of the xpresser request handler
+        const router = server.getRouter<RouterReqHandlerFunction>();
+
+        return { server, nativeRouter, router };
+    }
 }
 
 /**
- * Register Xpresser Server Module
- * This is a shorthand for registering this module.
- * @param $
- * @constructor
+ * Provider Configuration
  */
-export async function InitializeExpress($: Xpresser) {
-    const expressApp = new ExpressProvider();
-    await RegisterServerModule($, expressApp);
-    return expressApp;
+export interface ExpressProviderConfig {
+    /**
+     * Request Handler
+     * - `native` uses the native express request handler
+     * - `xpresser` uses the xpresser request handler
+     *
+     * @default "xpresser"
+     * @example
+     * // If requestHandler is set to `native`
+     * router.get("/", (req, res) => {
+     *     res.end(`Your url is ${req.url}`);
+     * })
+     *
+     * // If requestHandler is set to `xpresser`
+     * router.get("/", (http) => {
+     *     http.send(`Your url is ${http.req.url}`);
+     * })
+     */
+    requestHandler: "express" | "xpresser";
 }
