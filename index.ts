@@ -19,6 +19,30 @@ import { RouterReqHandlerFunction } from "./src/ExpressRequestEngine.js";
 import { RequestEngine } from "@xpresser/server-module/engines/RequestEngine.js";
 
 /**
+ * Provider Configuration
+ */
+export interface ExpressProviderConfig {
+    /**
+     * Request Handler
+     * - `express` uses the native express request handler
+     * - `xpresser` uses the xpresser request handler
+     *
+     * @default "xpresser"
+     * @example
+     * // If requestHandler is set to `native`
+     * router.get("/", (req, res) => {
+     *     res.end(`Your url is ${req.url}`);
+     * })
+     *
+     * // If requestHandler is set to `xpresser`
+     * router.get("/", (http) => {
+     *     http.send(`Your url is ${http.req.url}`);
+     * })
+     */
+    requestHandler: "express" | "xpresser";
+}
+
+/**
  *  ReqHandlerFunction - Request Handler Function
  *  This is the type of function used in routes
  */
@@ -462,28 +486,4 @@ export default class ExpressProvider
 
         return { server, nativeRouter, router };
     }
-}
-
-/**
- * Provider Configuration
- */
-export interface ExpressProviderConfig {
-    /**
-     * Request Handler
-     * - `native` uses the native express request handler
-     * - `xpresser` uses the xpresser request handler
-     *
-     * @default "xpresser"
-     * @example
-     * // If requestHandler is set to `native`
-     * router.get("/", (req, res) => {
-     *     res.end(`Your url is ${req.url}`);
-     * })
-     *
-     * // If requestHandler is set to `xpresser`
-     * router.get("/", (http) => {
-     *     http.send(`Your url is ${http.req.url}`);
-     * })
-     */
-    requestHandler: "express" | "xpresser";
 }

@@ -1,11 +1,11 @@
-import { configure, processCLIArgs, run } from '@japa/runner'
-import { assert } from '@japa/assert'
-import { apiClient } from '@japa/api-client'
+import { configure, processCLIArgs, run } from "@japa/runner";
+import { assert } from "@japa/assert";
+import { apiClient } from "@japa/api-client";
 
-processCLIArgs(process.argv.splice(2))
+processCLIArgs(process.argv.splice(2));
 configure({
-  files: ['tests/**/*.spec.ts'],
-  plugins: [assert(), apiClient('http://localhost:3333')],
-})
+    files: ["tests/**/*.spec.ts"],
+    plugins: [assert(), apiClient("http://localhost:2000")]
+});
 
-run()
+run();

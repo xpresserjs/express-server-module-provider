@@ -2,29 +2,31 @@
 
 This module provides an express server for XpresserJs.
 
+If you are conversant with the common js version of XpresserJs, 
+this module is the equivalent of that with a few yet to arrive features.
+
 ```typescript
-import {init, __dirname} from "@xpresser/framework";
-import { InitializeExpress } from "@xpresser/express-module";
+import { init, __dirname } from "@xpresser/framework";
+import ExpressProvider from "@xpresser/express-module";
 
 // Get Base Folder Path
 const base = __dirname(import.meta.url);
 
 // Init Xpresser
 const $ = await init({
-    env: "development",
-    paths: {base},
+  env: "development",
+  name: "Express Provider",
+  paths: { base }
 });
 
 // Register Server Module with Express Provider
-const expressProvider = await InitializeExpress($);
+const { router } = await ExpressProvider.use($);
 
-// log on started
-$.on.expressInit((next) => {
-    expressProvider.app // express app
-    expressProvider.http // http server
-    expressProvider.https // http server (if ssl is enabled) socket.io server
-})
+router.get("/", (http) => {
+  return http.send("Hello World!");
+});
 
 // Start Xpresser
 $.start().catch($.console.logErrorAndExit);
+
 ```

@@ -19,7 +19,8 @@
     "watch": "npx tsc -w",
     "dev": "nodemon --exec npx ts-node-esm ./tests/test.ts server",
     "bun:dev": "bun run --watch ./tests/test.ts server",
-    "test": "node --loader ts-node/esm --enable-source-maps bin/test.ts"
+    "test": "npx tsx bin/test.ts",
+    "test:watch": "npx tsx --watch bin/test.ts"
   },
   "dependencies": {
     "@xpresser/server-module": "0.0.16",
@@ -33,12 +34,13 @@
     "@japa/assert": "^3.0.0",
     "@japa/runner": "^3.1.4",
     "@types/cors": "^2.8.15",
-    "@types/express": "^4.17.20",
-    "@types/node": "^20.8.10",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.7.3",
     "@xpresser/framework": "0.0.35",
     "nodemon": "^3.0.1",
     "prettier": "^3.0.3",
     "ts-node": "^10.9.1",
+    "tsx": "^4.19.1",
     "typescript": "^5.2.2"
   }
 }

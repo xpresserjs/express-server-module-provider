@@ -9,5 +9,6 @@ yarn.lock
 # TS
 *.js
 *.d.ts
+!xpresser.d.ts
 
 xjs
