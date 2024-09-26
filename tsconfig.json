@@ -6,10 +6,14 @@
     "types": [
       "@types/node",
       "@types/express",
+      "@japa/runner",
+      "@japa/assert",
+      "@japa/api-client"
     ]
   },
   "exclude": [
     "node_modules",
-    "build"
+    "build",
+    "bin"
   ]
 }
