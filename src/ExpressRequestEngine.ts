@@ -1,4 +1,4 @@
-import { RequestEngine } from "../../server-module/engines/RequestEngine.js";
+import { RequestEngine } from "@xpresser/server-module/engines/RequestEngine.js";
 import type { Xpresser } from "@xpresser/framework";
 import type { Request, Response } from "express";
 import type { RouteData } from "@xpresser/server-module/router/RouterRoute.js";
