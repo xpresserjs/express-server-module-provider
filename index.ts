@@ -98,7 +98,6 @@ export default class ExpressProvider
 
     /**
      * Initialize Express Provider
-     * @param $
      */
     async init() {
         const $ = this.$;
@@ -422,8 +421,6 @@ export default class ExpressProvider
     /**
      * Calls the controller with `req` and `res`
      * @param route
-     * @param req
-     * @param res
      * @private
      */
     private handleNativeRoute(route: RouteData): void {

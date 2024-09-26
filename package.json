@@ -20,7 +20,8 @@
     "dev": "nodemon --exec npx ts-node-esm ./tests/test.ts server",
     "bun:dev": "bun run --watch ./tests/test.ts server",
     "test": "npx tsx bin/test.ts",
-    "test:watch": "npx tsx --watch bin/test.ts"
+    "test:watch": "npx tsx --watch bin/test.ts",
+    "prepublishOnly": "npx tsc && npm run test"
   },
   "dependencies": {
     "@xpresser/server-module": "0.0.16",

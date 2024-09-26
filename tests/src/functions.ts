@@ -8,7 +8,7 @@ export async function SetupXpresser() {
     const base = __dirname(import.meta.url);
 
     // Init Xpresser
-    const $ = await init({
+    return init({
         env: "development",
         name: "Node Server",
         debug: {
@@ -19,8 +19,6 @@ export async function SetupXpresser() {
         paths: { base },
         log: { asciiArt: false }
     });
-
-    return $;
 }
 
 /**
